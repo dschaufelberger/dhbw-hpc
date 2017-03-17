@@ -87,13 +87,13 @@ int countNeighbours(double* currentfield, int x, int y, int width, int height) {
 
   for (int stencilX = (x-1); stencilX <= (x+1); stencilX++) {
     for (int stencilY = (y-1); stencilY <= (y+1); stencilY++) {
-      // the center of the stencil should not be taken into account
-      if (stencilX != x && stencilY != y) {
-        // the modulo operations makes the field be tested in a periodic way
-        n += currentfield[calcIndex(width, (stencilX + w) % w, (stencilY + h) % h)];
-      }
+      // the modulo operations makes the field be tested in a periodic way
+      n += currentfield[calcIndex(width, (stencilX + width) % width, (stencilY + height) % height)];
     }
   }
+
+  // the center of the stencil should not be taken into account
+  n += currentfield[calcIndex(width, x, y)];
 
   return n;
 }
