@@ -18,5 +18,5 @@ $(TARGET): $(TARGET).c
 run: all
 	OMP_NUM_THREADS=6 ./$(TARGET)
 
-#clean:
-#	$(RM) $(TARGET)
+clean:
+	$(RM) $(TARGET)
