@@ -66,11 +66,36 @@ void evolve(double* currentfield, double* newfield, int w, int h) {
   for (y = 0; y < h; y++) {
     for (x = 0; x < w; x++) {
       
-      //TODO FIXME impletent rules and assign new value
-      
-      newfield[calcIndex(w, x,y)] = !newfield[calcIndex(w, x,y)];
+      int n = countNeighbours(currentfield, x, y, w, h);
+      int index = calcIndex(w, x, y);
+
+      // dead or alive and 3 neighbours => come alive or stay alive
+      if (n == 3) {
+        newfield[index] = 1;
+      }
+      // alive and less than 2 or more than 3 neighbours => DIE!
+      else if (currentfield[index] == 1 && n != 2) {
+        newfield[index] = 0;
+      }
+      // implicit else: has 2 neighbours => stays dead or alive
     }
   }
+}
+
+int countNeighbours(double* currentfield, int x, int y, int width, int height) {
+  int n = 0;
+
+  for (int stencilX = (x-1); stencilX <= (x+1); stencilX++) {
+    for (int stencilY = (y-1); stencilY <= (y+1); stencilY++) {
+      // the center of the stencil should not be taken into account
+      if (stencilX != x && stencilY != y) {
+        // the modulo operations makes the field be tested in a periodic way
+        n += currentfield[calcIndex(width, (stencilX + w) % w, (stencilY + h) % h)];
+      }
+    }
+  }
+
+  return n;
 }
  
 void filling(double* currentfield, int w, int h) {
