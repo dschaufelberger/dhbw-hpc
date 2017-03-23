@@ -61,10 +61,10 @@ void show(double* currentfield, int w, int h) {
 }
  
  
-void evolve(double* currentfield, double* newfield, int w, int h) {
+void evolve(double* currentfield, double* newfield, int startX, int endX, int startY, int endY, int w, int h) {
   int x,y;
-  for (y = 0; y < h; y++) {
-    for (x = 0; x < w; x++) {
+  for (y = startY; y <= endY; y++) {
+    for (x = startX; x <= endX; x++) {
       
       int n = countNeighbours(currentfield, x, y, w, h);
       int index = calcIndex(w, x, y);
@@ -113,13 +113,42 @@ void game(int w, int h) {
   
   filling(currentfield, w, h);
   long t;
-  for (t=0;t<TimeSteps;t++) {
-    show(currentfield, w, h);
-    evolve(currentfield, newfield, w, h);
+  int startX, startY, endX, endY;
+  int xFactor = 3;  // :-)
+  int yFactor = 2;
+  int number_of_areas = xFactor * yFactor;
+  int fieldWidth = (w/xFactor) + (w % xFactor > 0 ? 1 : 0);
+  int fieldHeight = (h/yFactor) + (h % yFactor > 0 ? 1 : 0);
+
+  for (t=0;t<1;t++) { //TimeSteps
+    //show(currentfield, w, h);
+        
+    #pragma omp parallel private(startX, startY, endX, endY) firstprivate(fieldWidth, fieldHeight, xFactor, yFactor, w, h) num_threads(number_of_areas)
+    {
+      printf("fieldWidth=%d\n", fieldWidth);
+      printf("fieldHeight=%d\n", fieldHeight);
+      startX = fieldWidth * (omp_get_thread_num() % xFactor);
+      endX = (fieldWidth * ((omp_get_thread_num() % xFactor) + 1)) - 1;
+      startY = fieldHeight * (omp_get_thread_num() / xFactor);
+      endY = (fieldHeight * ((omp_get_thread_num() / xFactor) + 1)) - 1;
+
+      if(omp_get_thread_num() % xFactor == (xFactor - 1)) {
+        endX = w - 1;
+      }
+
+      if(omp_get_thread_num() / xFactor == (h - 1)) {
+        endY = h - 1;
+      }
+
+      printf("Thread %d has area: [%d..%d][%d..%d]\n", omp_get_thread_num(), startX, endX, startY, endY);
+      
+
+      evolve(currentfield, newfield, startX, endX, startY, endY, w, h);
+      //writeVTK2(t,currentfield,"gol", w, h);
+    }
+    
     
     printf("%ld timestep\n",t);
-    writeVTK2(t,currentfield,"gol", w, h);
-    
     usleep(200000);
 
     //SWAP
@@ -137,7 +166,7 @@ int main(int c, char **v) {
   int w = 0, h = 0;
   if (c > 1) w = atoi(v[1]); ///< read width
   if (c > 2) h = atoi(v[2]); ///< read height
-  if (w <= 0) w = 30; ///< default width
-  if (h <= 0) h = 30; ///< default height
+  if (w <= 0) w = 13; ///< default width
+  if (h <= 0) h = 13; ///< default height
   game(w, h);
 }
