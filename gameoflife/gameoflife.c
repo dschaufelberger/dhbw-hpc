@@ -114,14 +114,14 @@ void game(int w, int h) {
   filling(currentfield, w, h);
   long t;
   int startX, startY, endX, endY;
-  int xFactor = 3;  // :-)
+  int xFactor = 2;  // :-)
   int yFactor = 2;
   int number_of_areas = xFactor * yFactor;
   int fieldWidth = (w/xFactor) + (w % xFactor > 0 ? 1 : 0);
   int fieldHeight = (h/yFactor) + (h % yFactor > 0 ? 1 : 0);
 
-  for (t=0;t<1;t++) { //TimeSteps
-    //show(currentfield, w, h);
+  for (t=0;t<TimeSteps;t++) {
+    show(currentfield, w, h);
         
     #pragma omp parallel private(startX, startY, endX, endY) firstprivate(fieldWidth, fieldHeight, xFactor, yFactor, w, h) num_threads(number_of_areas)
     {
@@ -166,7 +166,7 @@ int main(int c, char **v) {
   int w = 0, h = 0;
   if (c > 1) w = atoi(v[1]); ///< read width
   if (c > 2) h = atoi(v[2]); ///< read height
-  if (w <= 0) w = 13; ///< default width
-  if (h <= 0) h = 13; ///< default height
+  if (w <= 0) w = 30; ///< default width
+  if (h <= 0) h = 30; ///< default height
   game(w, h);
 }
