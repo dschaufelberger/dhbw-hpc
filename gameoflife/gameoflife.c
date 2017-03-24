@@ -112,11 +112,14 @@ void evolve(double* currentfield, double* newfield, int startX, int endX, int st
       if (n == 3) {
         newfield[index] = 1;
       }
-      // alive and less than 2 or more than 3 neighbours => DIE!
-      else if (currentfield[index] == 1 && n != 2) {
+      // dead or alive and 2 neighbours => stay dead or alive
+      else if (n == 2) {
+        newfield[index] = currentfield[index];
+      }
+      // less than 2 or more than 3 neighbours => DIE (even if you're already dead)!
+      else {
         newfield[index] = 0;
       }
-      // implicit else: has 2 neighbours => stays dead or alive
     }
   }
 }
@@ -153,8 +156,8 @@ void game(int w, int h) {
   filling(currentfield, w, h);
   long t;
   int startX, startY, endX, endY;
-  int xFactor = 2;  // :-)
-  int yFactor = 2;
+  int xFactor = 1;  // :-)
+  int yFactor = 1;
   int number_of_areas = xFactor * yFactor;
   int fieldWidth = (w/xFactor) + (w % xFactor > 0 ? 1 : 0);
   int fieldHeight = (h/yFactor) + (h % yFactor > 0 ? 1 : 0);
