@@ -132,7 +132,7 @@ int countNeighbours(double* currentfield, int x, int y, int width, int height) {
   }
 
   // the center of the stencil should not be taken into account
-  n += currentfield[calcIndex(width, x, y)];
+  n -= currentfield[calcIndex(width, x, y)];
 
   return n;
 }
