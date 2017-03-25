@@ -156,7 +156,7 @@ void game(int w, int h) {
   int fieldWidth = (w/xFactor) + (w % xFactor > 0 ? 1 : 0);
   int fieldHeight = (h/yFactor) + (h % yFactor > 0 ? 1 : 0);
 
-  for (t=0;t<2;t++) {
+  for (t=0;t<TimeSteps;t++) {
     show(currentfield, w, h);
         
     #pragma omp parallel private(startX, startY, endX, endY) firstprivate(fieldWidth, fieldHeight, xFactor, yFactor, w, h) shared(area_bounds) num_threads(number_of_areas)
