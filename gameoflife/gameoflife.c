@@ -61,7 +61,7 @@ void writeVTK2Container(long timestep, double *data, char prefix[1024], long w, 
   float deltay=1.0;
   long  nxy = w * h * sizeof(float);  
 
-  snprintf(filename, sizeof(filename), "%s-%05ld%s", prefix, timestep, ".vti");
+  snprintf(filename, sizeof(filename), "%s-%05ld%s", prefix, timestep, ".pvti");
   FILE* fp = fopen(filename, "w");
 
   fprintf(fp,"<?xml version=\"1.0\"?>\n");
