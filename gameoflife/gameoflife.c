@@ -133,24 +133,60 @@ int countNeighbours(double* currentfield, int x, int y, int width, int height) {
 
   return n;
 }
- 
-void filling(double* currentfield, int w, int h) {
-  int i;
-  for (i = 0; i < h*w; i++) {
-    currentfield[i] = (rand() < RAND_MAX / 10) ? 1 : 0; ///< init domain randomly
-  }
+
+int readFromASCIIFile(double* field, char filename[256], int* w, int* h) {
+    FILE* file = fopen(filename, "r"); /* should check the result */
+    if (file == NULL) {
+      printf("fopen failed, errno = %d\n", errno);
+    }
+
+    int size = 30;
+    char character;
+    size_t len = 0;
+    size_t width = 0;
+    size_t height = 0;
+
+    while ((character = fgetc(file)) != EOF){
+      if (character == '\n') {
+        if (!width) width = len;
+        height++;
+        continue;
+      }
+      if (character == 'o') field[len++] = 1;
+      if (character == '_') field[len++] = 0;
+      // resize 
+      if(len==size){
+          field = realloc(field, sizeof(double) * (size += 10));
+      }
+    }
+    height++;
+
+    field = realloc(field, sizeof(*field) * len);
+    *w = width;
+    *h = height;
+
+    fclose(file);
+
+  // int i;
+  // for (i = 0; i < h*w; i++) {
+  //   currentfield[i] = (rand() < RAND_MAX / 10) ? 1 : 0; ///< init domain randomly
+  // }
 }
  
-void game(int w, int h) {
-  double *currentfield = calloc(w*h, sizeof(double));
-  double *newfield     = calloc(w*h, sizeof(double)); 
-  //printf("size unsigned %d, size long %d\n",sizeof(float), sizeof(long));
+void game() {
+  int w, h;
+  int* width = &w;
+  int* height = &h;
+  double *currentfield = calloc(4*4, sizeof(double));
   
-  filling(currentfield, w, h);
+  readFromASCIIFile(currentfield, "test.txt", width, height);  //filling(currentfield, w, h);
+  double *newfield = calloc(w*h, sizeof(double));
+  //printf("size unsigned %d, size long %d\n",sizeof(float), sizeof(long));
+
   long t;
   int startX, startY, endX, endY;
-  int xFactor = 2;  // :-)
-  int yFactor = 2;
+  int xFactor = 1;  // :-)
+  int yFactor = 1;
   int number_of_areas = xFactor * yFactor;
   int *area_bounds = calloc(number_of_areas * 4, sizeof(int));
   int fieldWidth = (w/xFactor) + (w % xFactor > 0 ? 1 : 0);
@@ -205,10 +241,10 @@ void game(int w, int h) {
 }
  
 int main(int c, char **v) {
-  int w = 0, h = 0;
-  if (c > 1) w = atoi(v[1]); ///< read width
-  if (c > 2) h = atoi(v[2]); ///< read height
-  if (w <= 0) w = 30; ///< default width
-  if (h <= 0) h = 30; ///< default height
-  game(w, h);
+  // int w = 0, h = 0;
+  // if (c > 1) w = atoi(v[1]); ///< read width
+  // if (c > 2) h = atoi(v[2]); ///< read height
+  // if (w <= 0) w = 30; ///< default width
+  // if (h <= 0) h = 30; ///< default height
+  game();
 }
