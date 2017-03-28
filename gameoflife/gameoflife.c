@@ -10,7 +10,7 @@
 
 #define calcIndex(width, x,y)  ((y)*(width) + (x))
 
-long TimeSteps = 100;
+long TimeSteps = 2;
 
 void writeVTK2Piece(long timestep, double *data, char prefix[1024],int xStart, int xEnd, int yStart, int yEnd, long w, long h, int thread_num) {
   char filename[2048];  
@@ -134,17 +134,15 @@ int countNeighbours(double* currentfield, int x, int y, int width, int height) {
   return n;
 }
 
-int readFromASCIIFile(double* field, char filename[256], int* w, int* h) {
+double* readFromASCIIFile(char filename[256], int* w, int* h) {
     FILE* file = fopen(filename, "r"); /* should check the result */
-    if (file == NULL) {
-      printf("fopen failed, errno = %d\n", errno);
-    }
 
-    int size = 30;
+    int size = 10*10;
     char character;
     size_t len = 0;
     size_t width = 0;
     size_t height = 0;
+    double* field = calloc(size, sizeof(double));
 
     while ((character = fgetc(file)) != EOF){
       if (character == '\n') {
@@ -166,6 +164,7 @@ int readFromASCIIFile(double* field, char filename[256], int* w, int* h) {
     *h = height;
 
     fclose(file);
+    return field;
 
   // int i;
   // for (i = 0; i < h*w; i++) {
@@ -177,9 +176,7 @@ void game() {
   int w, h;
   int* width = &w;
   int* height = &h;
-  double *currentfield = calloc(4*4, sizeof(double));
-  
-  readFromASCIIFile(currentfield, "test.txt", width, height);  //filling(currentfield, w, h);
+  double *currentfield = readFromASCIIFile("test.txt", width, height);  //filling(currentfield, w, h);
   double *newfield = calloc(w*h, sizeof(double));
   //printf("size unsigned %d, size long %d\n",sizeof(float), sizeof(long));
 
