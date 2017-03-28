@@ -68,7 +68,7 @@ void writeVTK2Container(long timestep, double *data, char prefix[1024], long w, 
   fprintf(fp,"<VTKFile type=\"PImageData\" version=\"0.1\" byte_order=\"LittleEndian\" header_type=\"UInt64\">\n");
   fprintf(fp,"<PImageData WholeExtent=\"%d %d %d %d 0 0\" Origin=\"0 0 0\" Spacing =\"1 1 0\" GhostLevel=\"0\">\n", offsetX, offsetX + w, offsetY, offsetY + w);
   fprintf(fp,"<PCellData Scalars=\"%s\">\n", prefix);
-  fprintf(fp,"<PDataArray type=\"Float64\" Name=\"%s\"/>\n", prefix);
+  fprintf(fp,"<PDataArray type=\"Float32\" Name=\"%s\" format=\"appended\" offset=\"0\"/>\n", prefix);
   fprintf(fp,"</PCellData>\n");
 
   for(int i = 0; i < num_threads; i++) {
