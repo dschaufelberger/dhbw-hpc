@@ -27,13 +27,13 @@ void writeVTK2Piece(long timestep, double *data, char prefix[1024],int xStart, i
 
   fprintf(fp, "<?xml version=\"1.0\"?>\n");
   fprintf(fp, "<VTKFile type=\"ImageData\" version=\"0.1\" byte_order=\"LittleEndian\" header_type=\"UInt64\">\n");
-  fprintf(fp, "<ImageData WholeExtent=\"%d %d %d %d 0 0\" Origin=\"0 0 0\" Spacing=\"%le %le %le\">\n",
-    offsetX, offsetX + w, offsetY, offsetY + h, deltax, deltax, 0.0);
-  fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\">", xStart, xEnd + 1, yStart, yEnd + 1);
+  fprintf(fp, "<ImageData WholeExtent=\"%d %d %d %d 0 0\" Origin=\"0 0 0\" Spacing=\"1 1 0\">\n",
+    offsetX, offsetX + w, offsetY, offsetY + h);
+  fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\">\n", xStart, xEnd + 1, yStart, yEnd + 1);
   fprintf(fp, "<CellData Scalars=\"%s\">\n", prefix);
   fprintf(fp, "<DataArray type=\"Float32\" Name=\"%s\" format=\"appended\" offset=\"0\"/>\n", prefix);
   fprintf(fp, "</CellData>\n");
-  fprintf(fp, "</Piece>");
+  fprintf(fp, "</Piece>\n");
   fprintf(fp, "</ImageData>\n");
   fprintf(fp, "<AppendedData encoding=\"raw\">\n");
   fprintf(fp, "_");
@@ -66,17 +66,17 @@ void writeVTK2Container(long timestep, double *data, char prefix[1024], long w, 
 
   fprintf(fp,"<?xml version=\"1.0\"?>\n");
   fprintf(fp,"<VTKFile type=\"PImageData\" version=\"0.1\" byte_order=\"LittleEndian\" header_type=\"UInt64\">\n");
-  fprintf(fp,"<PImageData WholeExtent=\"%d %d %d %d 0 0\" Origin=\"0 0 0\" Spacing =\"1 1 1\" GhostLevel=\"0\">", offsetX, offsetX + w, offsetY, offsetY + w);
-  fprintf(fp,"<PCellData Scalars=\"%s\">", prefix);
-  fprintf(fp,"<PDataArray type=\"Float64\" Name=\"%s\"/>", prefix);
-  fprintf(fp,"</PCellData>");
+  fprintf(fp,"<PImageData WholeExtent=\"%d %d %d %d 0 0\" Origin=\"0 0 0\" Spacing =\"1 1 0\" GhostLevel=\"0\">\n", offsetX, offsetX + w, offsetY, offsetY + w);
+  fprintf(fp,"<PCellData Scalars=\"%s\">\n", prefix);
+  fprintf(fp,"<PDataArray type=\"Float64\" Name=\"%s\"/>\n", prefix);
+  fprintf(fp,"</PCellData>\n");
 
   for(int i = 0; i < num_threads; i++) {
-    fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\" Source=\"%s-%05ld-%02d%s\"/>",
+    fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\" Source=\"%s-%05ld-%02d%s\"/>\n",
       area_bounds[i * 4], area_bounds[i * 4 + 1] + 1, area_bounds[i * 4 + 2], area_bounds[i * 4 + 3] + 1, prefix, timestep, i, ".vti");
   }
 
-  fprintf(fp,"</PImageData>");
+  fprintf(fp,"</PImageData>\n");
   fprintf(fp, "</VTKFile>\n");
   fclose(fp);
 }
