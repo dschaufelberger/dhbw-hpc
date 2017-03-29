@@ -10,7 +10,7 @@
 
 #define calcIndex(width, x,y)  ((y)*(width) + (x))
 
-long TimeSteps = 2;
+long TimeSteps = 40;
 
 void writeVTK2Piece(long timestep, double *data, char prefix[1024],int xStart, int xEnd, int yStart, int yEnd, long w, long h, int thread_num) {
   char filename[2048];  
@@ -66,7 +66,7 @@ void writeVTK2Container(long timestep, double *data, char prefix[1024], long w, 
 
   fprintf(fp,"<?xml version=\"1.0\"?>\n");
   fprintf(fp,"<VTKFile type=\"PImageData\" version=\"0.1\" byte_order=\"LittleEndian\" header_type=\"UInt64\">\n");
-  fprintf(fp,"<PImageData WholeExtent=\"%d %d %d %d 0 0\" Origin=\"0 0 0\" Spacing =\"1 1 0\" GhostLevel=\"0\">\n", offsetX, offsetX + w, offsetY, offsetY + w);
+  fprintf(fp,"<PImageData WholeExtent=\"%d %d %d %d 0 0\" Origin=\"0 0 0\" Spacing =\"1 1 0\" GhostLevel=\"0\">\n", offsetX, offsetX + w, offsetY, offsetY + h);
   fprintf(fp,"<PCellData Scalars=\"%s\">\n", prefix);
   fprintf(fp,"<PDataArray type=\"Float32\" Name=\"%s\" format=\"appended\" offset=\"0\"/>\n", prefix);
   fprintf(fp,"</PCellData>\n");
@@ -138,7 +138,7 @@ double* readFromASCIIFile(char filename[256], int* w, int* h) {
     FILE* file = fopen(filename, "r"); /* should check the result */
 
     int size = 10*10;
-    char character;
+    int character;
     size_t len = 0;
     size_t width = 0;
     size_t height = 0;
@@ -182,7 +182,7 @@ void game() {
 
   long t;
   int startX, startY, endX, endY;
-  int xFactor = 1;  // :-)
+  int xFactor = 3;  // :-)
   int yFactor = 1;
   int number_of_areas = xFactor * yFactor;
   int *area_bounds = calloc(number_of_areas * 4, sizeof(int));
