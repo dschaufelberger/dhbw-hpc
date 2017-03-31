@@ -74,7 +74,7 @@ void writeVTK2Container(long timestep, double *data, char prefix[1024], long w, 
   fprintf(fp,"</PCellData>\n");
 
   for(int i = 0; i < num_threads; i++) {
-    fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\" leftNeighbourRank=\"%s-%05ld-%02d%s\"/>\n",
+    fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\" Source=\"%s-%05ld-%02d%s\"/>\n",
       area_bounds[i * 4], area_bounds[i * 4 + 1] + 1, area_bounds[i * 4 + 2], area_bounds[i * 4 + 3] + 1, prefix, timestep, i, ".vti");
   }
 
