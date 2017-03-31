@@ -8,6 +8,8 @@
 #include <math.h>
 #include <sys/time.h>
 
+#include "mpi.h"
+
 #define calcIndex(width, x,y)  ((y)*(width) + (x))
 
 long TimeSteps = 40;
@@ -72,7 +74,7 @@ void writeVTK2Container(long timestep, double *data, char prefix[1024], long w, 
   fprintf(fp,"</PCellData>\n");
 
   for(int i = 0; i < num_threads; i++) {
-    fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\" Source=\"%s-%05ld-%02d%s\"/>\n",
+    fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\" leftNeighbourRank=\"%s-%05ld-%02d%s\"/>\n",
       area_bounds[i * 4], area_bounds[i * 4 + 1] + 1, area_bounds[i * 4 + 2], area_bounds[i * 4 + 3] + 1, prefix, timestep, i, ".vti");
   }
 
@@ -172,76 +174,92 @@ double* readFromASCIIFile(char filename[256], int* w, int* h) {
   // }
 }
  
-void game() {
-  int w, h;
-  int* width = &w;
-  int* height = &h;
-  double *currentfield = readFromASCIIFile("test.txt", width, height);  //filling(currentfield, w, h);
-  double *newfield = calloc(w*h, sizeof(double));
-  //printf("size unsigned %d, size long %d\n",sizeof(float), sizeof(long));
+// void game() {
+//   int w, h;
+//   int* width = &w;
+//   int* height = &h;
+//   double *currentfield = readFromASCIIFile("test.txt", width, height);  //filling(currentfield, w, h);
+//   double *newfield = calloc(w*h, sizeof(double));
+//   //printf("size unsigned %d, size long %d\n",sizeof(float), sizeof(long));
 
-  long t;
-  int startX, startY, endX, endY;
-  int xFactor = 3;  // :-)
-  int yFactor = 1;
-  int number_of_areas = xFactor * yFactor;
-  int *area_bounds = calloc(number_of_areas * 4, sizeof(int));
-  int fieldWidth = (w/xFactor) + (w % xFactor > 0 ? 1 : 0);
-  int fieldHeight = (h/yFactor) + (h % yFactor > 0 ? 1 : 0);
+//   long t;
+//   int startX, startY, endX, endY;
+//   int xFactor = 3;  // :-)
+//   int yFactor = 1;
+//   int number_of_areas = xFactor * yFactor;
+//   int *area_bounds = calloc(number_of_areas * 4, sizeof(int));
+//   int fieldWidth = (w/xFactor) + (w % xFactor > 0 ? 1 : 0);
+//   int fieldHeight = (h/yFactor) + (h % yFactor > 0 ? 1 : 0);
 
-  for (t=0;t<TimeSteps;t++) {
-    show(currentfield, w, h);
+//   for (t=0;t<TimeSteps;t++) {
+//     show(currentfield, w, h);
         
-    #pragma omp parallel private(startX, startY, endX, endY) firstprivate(fieldWidth, fieldHeight, xFactor, yFactor, w, h) shared(area_bounds) num_threads(number_of_areas)
-    {
-      //printf("fieldWidth=%d\n", fieldWidth);
-      //printf("fieldHeight=%d\n", fieldHeight);
-      startX = fieldWidth * (omp_get_thread_num() % xFactor);
-      endX = (fieldWidth * ((omp_get_thread_num() % xFactor) + 1)) - 1;
-      startY = fieldHeight * (omp_get_thread_num() / xFactor);
-      endY = (fieldHeight * ((omp_get_thread_num() / xFactor) + 1)) - 1;
+//     #pragma omp parallel private(startX, startY, endX, endY) firstprivate(fieldWidth, fieldHeight, xFactor, yFactor, w, h) shared(area_bounds) num_threads(number_of_areas)
+//     {
+//       //printf("fieldWidth=%d\n", fieldWidth);
+//       //printf("fieldHeight=%d\n", fieldHeight);
+//       startX = fieldWidth * (omp_get_thread_num() % xFactor);
+//       endX = (fieldWidth * ((omp_get_thread_num() % xFactor) + 1)) - 1;
+//       startY = fieldHeight * (omp_get_thread_num() / xFactor);
+//       endY = (fieldHeight * ((omp_get_thread_num() / xFactor) + 1)) - 1;
 
-      if(omp_get_thread_num() % xFactor == (xFactor - 1)) {
-        endX = w - 1;
-      }
+//       if(omp_get_thread_num() % xFactor == (xFactor - 1)) {
+//         endX = w - 1;
+//       }
 
-      if(omp_get_thread_num() / xFactor == (h - 1)) {
-        endY = h - 1;
-      }
+//       if(omp_get_thread_num() / xFactor == (h - 1)) {
+//         endY = h - 1;
+//       }
 
-      //printf("Thread %d has area: [%d..%d][%d..%d]\n", omp_get_thread_num(), startX, endX, startY, endY);
+//       //printf("Thread %d has area: [%d..%d][%d..%d]\n", omp_get_thread_num(), startX, endX, startY, endY);
       
 
-      evolve(currentfield, newfield, startX, endX, startY, endY, w, h);
-      writeVTK2Piece(t,currentfield,"gol", startX, endX, startY, endY, w, h, omp_get_thread_num());
-      area_bounds[omp_get_thread_num() * 4] = startX;
-      area_bounds[omp_get_thread_num() * 4 + 1] = endX;
-      area_bounds[omp_get_thread_num() * 4 + 2] = startY;
-      area_bounds[omp_get_thread_num() * 4 + 3] = endY;
-    }
+//       evolve(currentfield, newfield, startX, endX, startY, endY, w, h);
+//       writeVTK2Piece(t,currentfield,"gol", startX, endX, startY, endY, w, h, omp_get_thread_num());
+//       area_bounds[omp_get_thread_num() * 4] = startX;
+//       area_bounds[omp_get_thread_num() * 4 + 1] = endX;
+//       area_bounds[omp_get_thread_num() * 4 + 2] = startY;
+//       area_bounds[omp_get_thread_num() * 4 + 3] = endY;
+//     }
 
-    writeVTK2Container(t,currentfield,"gol", w, h, area_bounds, number_of_areas);
+//     writeVTK2Container(t,currentfield,"gol", w, h, area_bounds, number_of_areas);
     
     
-    printf("%ld timestep\n",t);
-    usleep(200000);
+//     printf("%ld timestep\n",t);
+//     usleep(200000);
 
-    //SWAP
-    double *temp = currentfield;
-    currentfield = newfield;
-    newfield = temp;
-  }
+//     //SWAP
+//     double *temp = currentfield;
+//     currentfield = newfield;
+//     newfield = temp;
+//   }
   
-  free(currentfield);
-  free(newfield);
-  free(area_bounds);
-}
+//   free(currentfield);
+//   free(newfield);
+//   free(area_bounds);
+// }
  
-int main(int c, char **v) {
+int main(int argc, char *argv[]) {
   // int w = 0, h = 0;
   // if (c > 1) w = atoi(v[1]); ///< read width
   // if (c > 2) h = atoi(v[2]); ///< read height
   // if (w <= 0) w = 30; ///< default width
   // if (h <= 0) h = 30; ///< default height
-  game();
+  //game();
+  int myRank, size, leftNeighbourRank, rightNeighbourRank;
+  MPI_Comm world = MPI_COMM_WORLD;
+  MPI_Init(&argc, &argv);
+  MPI_Comm_size(world, &size);
+
+  int processes_per_dimension[1] = { size };
+  int is_periodic_per_dimension[1] = { 1 }; // the 1D topology is periodic at it's left and right border
+  MPI_Comm communicator;
+  MPI_Cart_create(world, 1, processes_per_dimension, is_periodic_per_dimension, 1, &communicator);
+  MPI_Comm_rank(communicator, &myRank);
+  MPI_Cart_shift(communicator, 0, 1, &leftNeighbourRank, &rightNeighbourRank);
+  
+  printf("(left_rank=%d | my_rank=%d | right_rank=%d)\n", leftNeighbourRank, myRank, rightNeighbourRank);
+
+  MPI_Finalize();
+  return 0;
 }
