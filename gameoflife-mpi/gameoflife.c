@@ -14,7 +14,7 @@
 
 long TimeSteps = 40;
 
-void writeVTK2Piece(long timestep, double *data, char prefix[1024],int xStart, int xEnd, int yStart, int yEnd, long w, long h, int thread_num) {
+void writeVTK2Piece(long timestep, double *data, char prefix[1024],int xStart, int xEnd, int yStart, int yEnd, long w, long h, int process_rank) {
   char filename[2048];  
   int x,y; 
   
@@ -24,7 +24,7 @@ void writeVTK2Piece(long timestep, double *data, char prefix[1024],int xStart, i
   float deltay=1.0;
   long  nxy = w * h * sizeof(float);  
 
-  snprintf(filename, sizeof(filename), "%s-%05ld-%02d%s", prefix, timestep, thread_num, ".vti");
+  snprintf(filename, sizeof(filename), "%s-%05ld-%02d%s", prefix, timestep, process_rank, ".vti");
   FILE* fp = fopen(filename, "w");
 
   fprintf(fp, "<?xml version=\"1.0\"?>\n");
@@ -53,7 +53,7 @@ void writeVTK2Piece(long timestep, double *data, char prefix[1024],int xStart, i
   fclose(fp);
 }
 
-void writeVTK2Container(long timestep, double *data, char prefix[1024], long w, long h, int *area_bounds, int num_threads) {
+void writeVTK2Container(long timestep, double *data, char prefix[1024], long w, long h, int *area_bounds, int num_processes) {
   char filename[2048];  
   int x,y; 
   
@@ -68,12 +68,12 @@ void writeVTK2Container(long timestep, double *data, char prefix[1024], long w, 
 
   fprintf(fp,"<?xml version=\"1.0\"?>\n");
   fprintf(fp,"<VTKFile type=\"PImageData\" version=\"0.1\" byte_order=\"LittleEndian\" header_type=\"UInt64\">\n");
-  fprintf(fp,"<PImageData WholeExtent=\"%d %d %d %d 0 0\" Origin=\"0 0 0\" Spacing =\"1 1 0\" GhostLevel=\"0\">\n", offsetX, offsetX + w, offsetY, offsetY + h);
+  fprintf(fp,"<PImageData WholeExtent=\"%d %d %d %d 0 0\" Origin=\"0 0 0\" Spacing =\"1 1 0\" GhostLevel=\"1\">\n", offsetX, offsetX + w, offsetY, offsetY + h);
   fprintf(fp,"<PCellData Scalars=\"%s\">\n", prefix);
   fprintf(fp,"<PDataArray type=\"Float32\" Name=\"%s\" format=\"appended\" offset=\"0\"/>\n", prefix);
   fprintf(fp,"</PCellData>\n");
 
-  for(int i = 0; i < num_threads; i++) {
+  for(int i = 0; i < processes_count; i++) {
     fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\" Source=\"%s-%05ld-%02d%s\"/>\n",
       area_bounds[i * 4], area_bounds[i * 4 + 1] + 1, area_bounds[i * 4 + 2], area_bounds[i * 4 + 3] + 1, prefix, timestep, i, ".vti");
   }
@@ -167,11 +167,6 @@ double* readFromASCIIFile(char filename[256], int* w, int* h) {
 
     fclose(file);
     return field;
-
-  // int i;
-  // for (i = 0; i < h*w; i++) {
-  //   currentfield[i] = (rand() < RAND_MAX / 10) ? 1 : 0; ///< init domain randomly
-  // }
 }
  
 // void game() {
