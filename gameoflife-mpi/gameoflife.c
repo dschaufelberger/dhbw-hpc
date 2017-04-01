@@ -195,7 +195,6 @@ void computeSendBuffer(double* field, double* buffer, int w, int h, int num_proc
   for (int y = 0; y < h; y++) {
     for (int x = 0; x < w; x++) {
       // Maps the <w * h> domain to a <(w / #processes) * #processes> domain.
-      // If the domain is seen as a matrix D, than this is equivalent to 
       // The <(w / #processes) * h> sub domain for each process is literraly flattened into a connected block in the array
       //
       //  |   P0    |   P1    |   P2    |
