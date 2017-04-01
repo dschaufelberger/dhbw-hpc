@@ -234,8 +234,11 @@ double* readFromASCIIFile(char filename[256], int* w, int* h) {
 //   free(area_bounds);
 // }
 
-void game(int w, int h, int* initialField, MPI_Comm communicator, int rank, int num_processes) {
+void game(int width, int height, int initialField[], MPI_Comm communicator, int rank, int num_processes) {
+  int w = (width / num_processes);
+  int h = height;
 
+  printf("Rank = %d, width x height = %d x %d\n", rank, w, h);
 }
 
 
@@ -279,20 +282,19 @@ int main(int argc, char *argv[]) {
   MPI_Cart_create(world, 1, processes_per_dimension, is_periodic_per_dimension, 1, &topology_comm);
   MPI_Comm_rank(topology_comm, &rank);
   MPI_Comm_size(topology_comm, &num_processes);
-  
-  printf("Number of processes: %d\n", num_processes);
 
+  int sendCount = (w / num_processes) * h;
   int* sendBuffer;
   int receiveBuffer[sendCount];
-  int sendCount = (w / num_processes) * h;
-  if (rank == 0) {
+  if (rank == 0) {  
+    printf("Number of processes: %d\n", num_processes);
+    printf("Sendcount = %d\n", sendCount);
     double* field = initializeField(w, h);
-    // int partialFieldSize = (w / num_processes) * h;
     sendBuffer = computeSendBuffer(field, w, h, num_processes, topology_comm);
   }
 
   // MPI_Scatter to distribute to all other processes
-  MPI_Scatter(sendBuffer, sendCount, MPI_INT, receiveBuffer, sendCount, MPI_INT, 0, topology_comm);
+  //MPI_Scatter(sendBuffer, sendCount, MPI_INT, receiveBuffer, sendCount, MPI_INT, 0, topology_comm);
 
   game(w, h, receiveBuffer, topology_comm, rank, num_processes);
   
