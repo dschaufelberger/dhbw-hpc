@@ -89,7 +89,6 @@ void show(double* currentfield, int w, int h) {
   int x,y;
   for (y = 0; y < h; y++) {
     for (x = 0; x < w; x++) printf(currentfield[calcIndex(w, x,y)] ? "\033[07m  \033[m" : "  ");
-    //printf("\033[E");
     printf("\n");
   }
   fflush(stdout);
@@ -168,110 +167,49 @@ double* readFromASCIIFile(char filename[256], int* w, int* h) {
     fclose(file);
     return field;
 }
- 
-// void game() {
-//   int w, h;
-//   int* width = &w;
-//   int* height = &h;
-//   double *currentfield = readFromASCIIFile("test.txt", width, height);  //filling(currentfield, w, h);
-//   double *newfield = calloc(w*h, sizeof(double));
-//   //printf("size unsigned %d, size long %d\n",sizeof(float), sizeof(long));
 
-//   long t;
-//   int startX, startY, endX, endY;
-//   int xFactor = 3;  // :-)
-//   int yFactor = 1;
-//   int number_of_areas = xFactor * yFactor;
-//   int *area_bounds = calloc(number_of_areas * 4, sizeof(int));
-//   int fieldWidth = (w/xFactor) + (w % xFactor > 0 ? 1 : 0);
-//   int fieldHeight = (h/yFactor) + (h % yFactor > 0 ? 1 : 0);
-
-//   for (t=0;t<TimeSteps;t++) {
-//     show(currentfield, w, h);
-        
-//     #pragma omp parallel private(startX, startY, endX, endY) firstprivate(fieldWidth, fieldHeight, xFactor, yFactor, w, h) shared(area_bounds) num_threads(number_of_areas)
-//     {
-//       //printf("fieldWidth=%d\n", fieldWidth);
-//       //printf("fieldHeight=%d\n", fieldHeight);
-//       startX = fieldWidth * (omp_get_thread_num() % xFactor);
-//       endX = (fieldWidth * ((omp_get_thread_num() % xFactor) + 1)) - 1;
-//       startY = fieldHeight * (omp_get_thread_num() / xFactor);
-//       endY = (fieldHeight * ((omp_get_thread_num() / xFactor) + 1)) - 1;
-
-//       if(omp_get_thread_num() % xFactor == (xFactor - 1)) {
-//         endX = w - 1;
-//       }
-
-//       if(omp_get_thread_num() / xFactor == (h - 1)) {
-//         endY = h - 1;
-//       }
-
-//       //printf("Thread %d has area: [%d..%d][%d..%d]\n", omp_get_thread_num(), startX, endX, startY, endY);
-      
-
-//       evolve(currentfield, newfield, startX, endX, startY, endY, w, h);
-//       writeVTK2Piece(t,currentfield,"gol", startX, endX, startY, endY, w, h, omp_get_thread_num());
-//       area_bounds[omp_get_thread_num() * 4] = startX;
-//       area_bounds[omp_get_thread_num() * 4 + 1] = endX;
-//       area_bounds[omp_get_thread_num() * 4 + 2] = startY;
-//       area_bounds[omp_get_thread_num() * 4 + 3] = endY;
-//     }
-
-//     writeVTK2Container(t,currentfield,"gol", w, h, area_bounds, number_of_areas);
-    
-    
-//     printf("%ld timestep\n",t);
-//     usleep(200000);
-
-//     //SWAP
-//     double *temp = currentfield;
-//     currentfield = newfield;
-//     newfield = temp;
-//   }
-  
-//   free(currentfield);
-//   free(newfield);
-//   free(area_bounds);
-// }
-
-void game(int width, int height, int initialField[], MPI_Comm communicator, int rank, int num_processes) {
+void game(int width, int height, double initialField[], MPI_Comm communicator, int rank, int num_processes) {
   int w = (width / num_processes);
   int h = height;
 
   printf("Rank = %d, width x height = %d x %d\n", rank, w, h);
+  show(initialField, w, h);
 }
 
 
 double* initializeField(int w, int h) {
   double* field = calloc(w * h, sizeof(double));
+
+  int i;
+  for (i = 0; i < h*w; i++) {
+    field[i] = (rand() < RAND_MAX / 10) ? 1 : 0; ///< init domain randomly
+  }
+
   return field;
 }
 
-int* computeSendBuffer(double* field, int w, int h, int num_processes, MPI_Comm communicator) {
-  int sendBuffer[w * h];
+void computeSendBuffer(double* field, double* buffer, int w, int h, int num_processes, MPI_Comm communicator) {
   int partialWidth = w / num_processes;
   int sendCount = partialWidth * h;
   int index;
   for (int y = 0; y < h; y++) {
     for (int x = 0; x < w; x++) {
       index = calcIndex(sendCount, (h * y) + x % partialWidth, x / partialWidth);
-      sendBuffer[index] = field[calcIndex(w, x, y)];
-      // printf("map (%2d, %d) to (%d, %d)\n", x, y, (h * y) + x % partialWidth, x / partialWidth);
-      // printf("index = %2d\n", index);
+      buffer[index] = field[calcIndex(w, x, y)];
     }
   }
-
-  return sendBuffer;
 }
  
 int main(int argc, char *argv[]) {
+  srand(time(NULL));
+
   int w = 0, h = 0;
   if (argc > 1) w = atoi(argv[1]); ///< read width
   if (argc > 2) h = atoi(argv[2]); ///< read height
   if (w <= 0) w = 12; ///< default width
   if (h <= 0) h = 4; ///< default height
 
-  int rank, num_processes, leftNeighbourRank, rightNeighbourRank;
+  int rank, num_processes;
   MPI_Comm world = MPI_COMM_WORLD;
   MPI_Init(&argc, &argv);
   MPI_Comm_size(world, &num_processes);
@@ -284,24 +222,23 @@ int main(int argc, char *argv[]) {
   MPI_Comm_size(topology_comm, &num_processes);
 
   int sendCount = (w / num_processes) * h;
-  int* sendBuffer;
-  int receiveBuffer[sendCount];
+  double* sendBuffer = (double *)malloc(w * h * sizeof(double));
+  double* receiveBuffer = (double *)malloc(sendCount * sizeof(double));
   if (rank == 0) {  
     printf("Number of processes: %d\n", num_processes);
     printf("Sendcount = %d\n", sendCount);
     double* field = initializeField(w, h);
-    sendBuffer = computeSendBuffer(field, w, h, num_processes, topology_comm);
+    computeSendBuffer(field, sendBuffer, w, h, num_processes, topology_comm);
+    show(field, w, h);
   }
 
   // MPI_Scatter to distribute to all other processes
-  //MPI_Scatter(sendBuffer, sendCount, MPI_INT, receiveBuffer, sendCount, MPI_INT, 0, topology_comm);
+  MPI_Scatter(sendBuffer, sendCount, MPI_DOUBLE, receiveBuffer, sendCount, MPI_DOUBLE, 0, topology_comm);
 
   game(w, h, receiveBuffer, topology_comm, rank, num_processes);
-  
-  // MPI_Cart_shift(topology_comm, 0, 1, &leftNeighbourRank, &rightNeighbourRank);
-  
-  // printf("(left_rank=%d | my_rank=%d | right_rank=%d)\n", leftNeighbourRank, rank, rightNeighbourRank);
 
+  free(sendBuffer);
+  free(receiveBuffer);
   MPI_Finalize();
   return 0;
 }
