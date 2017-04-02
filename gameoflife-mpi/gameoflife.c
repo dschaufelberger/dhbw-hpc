@@ -181,7 +181,20 @@ double* readFromASCIIFile(char filename[256], int* w, int* h) {
     fclose(file);
     return field;
 }
-
+/*
+* ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* ~ Buffer vs. MPI_Datatype ~
+* ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Buffer:
+*   + kein Overhead zum erstellen der Datentypen
+*   + Auf gleichen Systemen schneller durch nicht benötigte Konvertierungen
+*   - Nicht portierbar, interoperabel
+*
+* MPI_Datatype:
+*   + Interoperabel, unabhängig vom System
+*   - mehr Aufwand*
+*
+*/
 void game(int overallWidth, int overallHeight, double initialField[], MPI_Comm communicator, int rank, int num_processes) {
   int w = (overallWidth / num_processes);
   int h = overallHeight;
@@ -199,13 +212,54 @@ void game(int overallWidth, int overallHeight, double initialField[], MPI_Comm c
     index = calcIndex(w, (w - 1), i);
     ghostRight[i] = currentField[index];
   }
-  // printf("GhostLeft from rank=%d\n", rank);
-  // printToFile(ghostLeft, "ghostLeft", 1,h, rank);
 
-  // printf("GhostRight from rank=%d\n", rank);
-  // printToFile(ghostRight, "ghostRight", 1,h,rank);
+  printf("GhostLeft from rank=%d\n", rank);
+  printToFile(ghostLeft, "ghostLeft", 1,h, rank);
+
+  printf("GhostRight from rank=%d\n", rank);
+  printToFile(ghostRight, "ghostRight", 1,h,rank);
+
+
+  printf("Sharing ghost layers\n");
+  shareGhostlayers(ghostLeft, ghostRight, h, rank, num_processes, communicator);
+  printf("SharedLeft from rank=%d\n", rank);
+  printToFile(ghostLeft, "sharedLeft", 1,h, rank);
+
+  printf("SharedRight from rank=%d\n", rank);
+  printToFile(ghostRight, "sharedRight", 1,h,rank);
 
   free(newField);
+}
+
+void shareGhostlayers(double* ghostLeft, double* ghostRight, int sendCount, int rank, int num_processes, MPI_Comm communicator) {
+  if (rank % 2 == 0) {
+    if (rank < num_processes-1) {
+      printf("Send from %d to (%d)\n", rank, rank+1);
+      MPI_Send(ghostRight, sendCount, MPI_DOUBLE, (rank+1), 1, communicator);
+      printf("Recv from %d to (%d)\n", rank, rank+1);
+      MPI_Recv(ghostRight, sendCount, MPI_DOUBLE, (rank+1), 2, communicator, MPI_STATUS_IGNORE);
+    }
+    if (rank > 0) {
+      printf("Send from %d to (%d)\n", rank, rank-1);
+      MPI_Send(ghostLeft, sendCount, MPI_DOUBLE, (rank-1), 3, communicator);
+      printf("Recv from %d to (%d)\n", rank, rank-1);
+      MPI_Recv(ghostLeft, sendCount, MPI_DOUBLE, (rank-1), 4, communicator, MPI_STATUS_IGNORE);
+    }
+  } else {
+    if (rank > 0) {
+      printf("Recv from %d to (%d)\n", rank, rank-1);
+      MPI_Recv(ghostLeft, sendCount, MPI_DOUBLE, (rank-1), 1, communicator, MPI_STATUS_IGNORE);
+      printf("Send from %d to (%d)\n", rank, rank-1);
+      MPI_Send(ghostLeft, sendCount, MPI_DOUBLE, (rank-1), 2, communicator);
+    }
+    if (rank < num_processes-1) {
+      printf("Recv from %d to (%d)\n", rank, rank+1);
+      MPI_Recv(ghostRight, sendCount, MPI_DOUBLE, (rank+1), 3, communicator, MPI_STATUS_IGNORE);
+
+      printf("Send from %d to (%d)\n", rank, rank+1);
+      MPI_Send(ghostRight, sendCount, MPI_DOUBLE, (rank+1), 4, communicator);
+    }
+  }
 }
 
 
