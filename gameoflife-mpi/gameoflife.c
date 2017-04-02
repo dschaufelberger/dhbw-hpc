@@ -203,8 +203,9 @@ void computeSendBuffer(double* field, double* buffer, int w, int h, int num_proc
       //  |  7 |  8 |  9 | 10 | 11 | 12 |  =>   | 3 | 4 |  9 | 10 | 15 | 16 | 21 | 22 |   <- P1
       //  | 13 | 14 | 15 | 16 | 17 | 18 |       | 5 | 6 | 11 | 12 | 17 | 18 | 23 | 24 |   <- P2
       //  | 19 | 20 | 21 | 22 | 23 | 24 |
-      index = calcIndex(sendCount, (h * y) + x % partialWidth, x / partialWidth);
+      index = calcIndex(sendCount, (partialWidth * y) + (x % partialWidth), x / partialWidth);
       buffer[index] = field[calcIndex(w, x, y)];
+      // printf("(%2d, %d) -> (%d, %d)\n", x, y, (partialWidth * y) + (x % partialWidth), x / partialWidth);
     }
   }
 }
@@ -231,20 +232,23 @@ int main(int argc, char *argv[]) {
   MPI_Comm_size(topology_comm, &num_processes);
 
   int sendCount = (w / num_processes) * h;
-  double* sendBuffer = (double *)malloc(w * h * sizeof(double));
+  double* sendBuffer = (double *)calloc(w * h,sizeof(double));
   double* receiveBuffer = (double *)malloc(sendCount * sizeof(double));
   if (rank == 0) {  
     printf("Number of processes: %d\n", num_processes);
     printf("Sendcount = %d\n", sendCount);
     double* field = initializeField(w, h);
-    computeSendBuffer(field, sendBuffer, w, h, num_processes, topology_comm);
+    printf("Field:\n");
     show(field, w, h);
-  }
 
+    computeSendBuffer(field, sendBuffer, w, h, num_processes, topology_comm);
+    printf("\nSendBuffer:\n");
+    show(sendBuffer, sendCount, num_processes);
+  }
   // MPI_Scatter to distribute to all other processes
   MPI_Scatter(sendBuffer, sendCount, MPI_DOUBLE, receiveBuffer, sendCount, MPI_DOUBLE, 0, topology_comm);
 
-  game(w, h, receiveBuffer, topology_comm, rank, num_processes);
+  //game(w, h, receiveBuffer, topology_comm, rank, num_processes);
 
   free(sendBuffer);
   free(receiveBuffer);
