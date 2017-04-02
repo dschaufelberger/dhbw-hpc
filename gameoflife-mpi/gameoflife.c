@@ -199,12 +199,12 @@ void game(int overallWidth, int overallHeight, double initialField[], MPI_Comm c
   int w = (overallWidth / num_processes);
   int h = overallHeight;
   double* currentField = initialField;
-  double* newField = (int*)calloc(w * h, sizeof(double));
-  double ghostLeft[h];
-  double ghostRight[h];
+  double* newField = (double*)calloc(w * h, sizeof(double));
+  double* ghostLeft = (double*)calloc(h, sizeof(double));
+  double* ghostRight = (double*)calloc(h, sizeof(double));
 
-  // printf("Rank = %d, width x height = %d x %d\n", rank, w, h);
-  // printToFile(currentField, "field", w, h, rank);
+  printf("Rank = %d, width x height = %d x %d\n", rank, w, h);
+  printToFile(currentField, "field", w, h, rank);
 
   for (int i = 0; i < h; i++) {
     int index = calcIndex(w, 0, i);
@@ -229,6 +229,8 @@ void game(int overallWidth, int overallHeight, double initialField[], MPI_Comm c
   printToFile(ghostRight, "sharedRight", 1,h,rank);
 
   free(newField);
+  free(ghostLeft);
+  free(ghostRight);
 }
 
 void shareGhostlayers(double* ghostLeft, double* ghostRight, int sendCount, int rank, int num_processes, MPI_Comm communicator) {
