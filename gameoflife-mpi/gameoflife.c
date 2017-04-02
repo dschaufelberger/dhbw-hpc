@@ -83,12 +83,26 @@ void writeVTK2Container(long timestep, double *data, char prefix[1024], long w, 
   fclose(fp);
 }
 
+void printToFile(double* field,char prefix[1024], int w, int h, int rank) {
+  char filename[2048]; 
+  snprintf(filename, sizeof(filename), "%s-%d%s", prefix, rank, ".txt");
+  FILE* fp = fopen(filename, "w");
 
-void show(double* currentfield, int w, int h) {
-  printf("\033[H");
   int x,y;
   for (y = 0; y < h; y++) {
-    for (x = 0; x < w; x++) printf(currentfield[calcIndex(w, x,y)] ? "\033[07m  \033[m" : "  ");
+    for (x = 0; x < w; x++) fprintf(fp, field[calcIndex(w, x,y)] ? "X" : "_");
+    fprintf(fp, "\n");
+  }
+
+  fclose(fp);
+}
+
+void show(double* currentfield, int w, int h) {
+  // printf("\033[H");
+  int x,y;
+  for (y = 0; y < h; y++) {
+    // for (x = 0; x < w; x++) printf(currentfield[calcIndex(w, x,y)] ? "\033[07m  \033[m" : "  ");
+    for (x = 0; x < w; x++) printf(currentfield[calcIndex(w, x,y)] ? "X" : "_");
     printf("\n");
   }
   fflush(stdout);
@@ -168,12 +182,30 @@ double* readFromASCIIFile(char filename[256], int* w, int* h) {
     return field;
 }
 
-void game(int width, int height, double initialField[], MPI_Comm communicator, int rank, int num_processes) {
-  int w = (width / num_processes);
-  int h = height;
+void game(int overallWidth, int overallHeight, double initialField[], MPI_Comm communicator, int rank, int num_processes) {
+  int w = (overallWidth / num_processes);
+  int h = overallHeight;
+  double* currentField = initialField;
+  double* newField = (int*)calloc(w * h, sizeof(double));
+  double ghostLeft[h];
+  double ghostRight[h];
 
-  printf("Rank = %d, width x height = %d x %d\n", rank, w, h);
-  show(initialField, w, h);
+  // printf("Rank = %d, width x height = %d x %d\n", rank, w, h);
+  // printToFile(currentField, "field", w, h, rank);
+
+  for (int i = 0; i < h; i++) {
+    int index = calcIndex(w, 0, i);
+    ghostLeft[i] = currentField[index];
+    index = calcIndex(w, (w - 1), i);
+    ghostRight[i] = currentField[index];
+  }
+  // printf("GhostLeft from rank=%d\n", rank);
+  // printToFile(ghostLeft, "ghostLeft", 1,h, rank);
+
+  // printf("GhostRight from rank=%d\n", rank);
+  // printToFile(ghostRight, "ghostRight", 1,h,rank);
+
+  free(newField);
 }
 
 
@@ -248,7 +280,9 @@ int main(int argc, char *argv[]) {
   // MPI_Scatter to distribute to all other processes
   MPI_Scatter(sendBuffer, sendCount, MPI_DOUBLE, receiveBuffer, sendCount, MPI_DOUBLE, 0, topology_comm);
 
-  //game(w, h, receiveBuffer, topology_comm, rank, num_processes);
+  // printf("\nReceiveBuffer (rank %d):\n", rank);
+  // show(receiveBuffer, w / num_processes, h);
+  game(w, h, receiveBuffer, topology_comm, rank, num_processes);
 
   free(sendBuffer);
   free(receiveBuffer);
