@@ -228,7 +228,6 @@ void game(int overallWidth, int overallHeight, double initialField[], MPI_Comm c
 void shareGhostlayers(double* ghostLeft, double* ghostRight, int sendCount, int rank, int num_processes, MPI_Comm communicator) {
   double* sendbuffer = (double*)calloc(sendCount, sizeof(double));
   double* receivebuffer = (double*)calloc(sendCount, sizeof(double));;
-  
   if (rank % 2 == 0) {
     if (rank < num_processes-1) {
       fillGhostIntoBuffer(ghostRight, sendbuffer, sendCount);
@@ -265,6 +264,32 @@ void shareGhostlayers(double* ghostLeft, double* ghostRight, int sendCount, int 
 
       MPI_Send(sendbuffer, sendCount, MPI_DOUBLE, (rank+1), 4, communicator);
     }
+  }
+
+  if (rank == 0) {
+    int periodic_neighbour_left, neighbour_right;
+    MPI_Cart_shift(communicator, 0, 1, &periodic_neighbour_left, &neighbour_right);
+    printf("periodic left: %d\n", periodic_neighbour_left);
+    fillGhostIntoBuffer(ghostLeft, sendbuffer, sendCount);
+
+    MPI_Send(sendbuffer, sendCount, MPI_DOUBLE, periodic_neighbour_left, 1, communicator);      
+    MPI_Recv(receivebuffer, sendCount, MPI_DOUBLE, periodic_neighbour_left, 2, communicator, MPI_STATUS_IGNORE);
+
+    fillBufferIntoGhost(receivebuffer, ghostLeft, sendCount);
+  }
+
+  if (rank == num_processes-1) {
+    int neighbour_left, periodic_neighbour_right;
+    MPI_Cart_shift(communicator, 0, 1, &neighbour_left, &periodic_neighbour_right);
+    printf("periodic right: %d\n", periodic_neighbour_right);
+
+    fillGhostIntoBuffer(ghostRight, sendbuffer, sendCount);
+
+    MPI_Recv(receivebuffer, sendCount, MPI_DOUBLE, periodic_neighbour_right, 1, communicator, MPI_STATUS_IGNORE);
+
+    fillBufferIntoGhost(receivebuffer, ghostRight, sendCount);
+    
+    MPI_Send(sendbuffer, sendCount, MPI_DOUBLE, periodic_neighbour_right, 2, communicator);
   }
 
   free(sendbuffer);
