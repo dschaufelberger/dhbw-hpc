@@ -12,7 +12,7 @@
 
 #define calcIndex(width, x,y)  ((y)*(width) + (x))
 
-long TimeSteps = 2;
+long TimeSteps = 40;
 
 void writeVTK2Piece(long timestep, double *data, char prefix[1024], int w, int h, int overallWidth, int processRank) {
   char filename[2048];  
@@ -148,7 +148,7 @@ int countNeighbours(double* currentfield, double* ghostLeft, double* ghostRight,
 double* readFromASCIIFile(char filename[256], int* w, int* h) {
     FILE* file = fopen(filename, "r"); /* should check the result */
 
-    int size = 10*10;
+    int size = 22*13;
     int character;
     size_t len = 0;
     size_t width = 0;
@@ -352,8 +352,8 @@ int main(int argc, char *argv[]) {
   int w = 0, h = 0;
   if (argc > 1) w = atoi(argv[1]); ///< read width
   if (argc > 2) h = atoi(argv[2]); ///< read height
-  if (w <= 0) w = 12; ///< default width
-  if (h <= 0) h = 4; ///< default height
+  if (w <= 0) w = 21; ///< default width
+  if (h <= 0) h = 13; ///< default height
 
   int rank, num_processes;
   MPI_Comm world = MPI_COMM_WORLD;
