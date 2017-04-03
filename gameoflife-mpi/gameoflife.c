@@ -217,7 +217,7 @@ void game(int overallWidth, int overallHeight, double initialfield[], MPI_Comm c
     writeVTK2Piece(t, currentfield, "gol", w, h, overallWidth, rank);
 
     if (rank == 0) {
-      writeVTK2Container(t, "gol", overallWidth, overallHeight, w, int num_processes);
+      writeVTK2Container(t, "gol", overallWidth, overallHeight, w, num_processes);
     }
 
     // printToFile(ghostLeft, "sharedLeft", 1,h, rank);
