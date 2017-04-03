@@ -19,9 +19,6 @@ void writeVTK2Piece(long timestep, double *data, char prefix[1024], int w, int h
   int x,y; 
   
   long offsetX = w * processRank;
-  long offsetY = 0;
-  float deltax=1.0;
-  float deltay=1.0;
   long  nxy = w * h * sizeof(float);  
 
   snprintf(filename, sizeof(filename), "%s-%05ld-%02d%s", prefix, timestep, processRank, ".vti");
@@ -52,29 +49,21 @@ void writeVTK2Piece(long timestep, double *data, char prefix[1024], int w, int h
   fclose(fp);
 }
 
-void writeVTK2Container(long timestep, double *data, char prefix[1024], long w, long h, int *area_bounds, int num_processes) {
-  char filename[2048];  
-  int x,y; 
-  
-  long offsetX=0;
-  long offsetY=0;
-  float deltax=1.0;
-  float deltay=1.0;
-  long  nxy = w * h * sizeof(float);  
+void writeVTK2Container(long timestep, char prefix[1024], long w, long h, int partialWidth, int num_processes) {
+  char filename[2048];
 
   snprintf(filename, sizeof(filename), "%s-%05ld%s", prefix, timestep, ".pvti");
   FILE* fp = fopen(filename, "w");
 
   fprintf(fp,"<?xml version=\"1.0\"?>\n");
   fprintf(fp,"<VTKFile type=\"PImageData\" version=\"0.1\" byte_order=\"LittleEndian\" header_type=\"UInt64\">\n");
-  fprintf(fp,"<PImageData WholeExtent=\"%d %d %d %d 0 0\" Origin=\"0 0 0\" Spacing =\"1 1 0\" GhostLevel=\"1\">\n", offsetX, offsetX + w, offsetY, offsetY + h);
+  fprintf(fp,"<PImageData WholeExtent=\"%d %d %d %d 0 0\" Origin=\"0 0 0\" Spacing =\"1 1 0\" GhostLevel=\"1\">\n", 0, w, 0, h);
   fprintf(fp,"<PCellData Scalars=\"%s\">\n", prefix);
   fprintf(fp,"<PDataArray type=\"Float32\" Name=\"%s\" format=\"appended\" offset=\"0\"/>\n", prefix);
   fprintf(fp,"</PCellData>\n");
 
   for(int i = 0; i < num_processes; i++) {
-    fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\" Source=\"%s-%05ld-%02d%s\"/>\n",
-      area_bounds[i * 4], area_bounds[i * 4 + 1] + 1, area_bounds[i * 4 + 2], area_bounds[i * 4 + 3] + 1, prefix, timestep, i, ".vti");
+    fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\" Source=\"%s-%05ld-%02d%s\"/>\n", num_processes, num_processes + partialWidth, 0, h, prefix, timestep, i, ".vti");
   }
 
   fprintf(fp,"</PImageData>\n");
@@ -227,6 +216,10 @@ void game(int overallWidth, int overallHeight, double initialfield[], MPI_Comm c
     evolve(currentfield, newfield, ghostLeft, ghostRight, w, h);
     writeVTK2Piece(t, currentfield, "gol", w, h, overallWidth, rank);
 
+    if (rank == 0) {
+      writeVTK2Container(t, "gol", overallWidth, overallHeight, w, int num_processes);
+    }
+
     // printToFile(ghostLeft, "sharedLeft", 1,h, rank);
     // printToFile(ghostRight, "sharedRight", 1,h,rank);
     
@@ -285,7 +278,7 @@ void shareGhostlayers(double* ghostLeft, double* ghostRight, int sendCount, int 
   if (rank == 0) {
     int periodic_neighbour_left, neighbour_right;
     MPI_Cart_shift(communicator, 0, 1, &periodic_neighbour_left, &neighbour_right);
-    printf("periodic left: %d\n", periodic_neighbour_left);
+
     fillGhostIntoBuffer(ghostLeft, sendbuffer, sendCount);
 
     MPI_Send(sendbuffer, sendCount, MPI_DOUBLE, periodic_neighbour_left, 1, communicator);      
@@ -297,7 +290,6 @@ void shareGhostlayers(double* ghostLeft, double* ghostRight, int sendCount, int 
   if (rank == num_processes-1) {
     int neighbour_left, periodic_neighbour_right;
     MPI_Cart_shift(communicator, 0, 1, &neighbour_left, &periodic_neighbour_right);
-    printf("periodic right: %d\n", periodic_neighbour_right);
 
     fillGhostIntoBuffer(ghostRight, sendbuffer, sendCount);
 
