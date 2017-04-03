@@ -63,7 +63,7 @@ void writeVTK2Container(long timestep, char prefix[1024], long w, long h, int pa
   fprintf(fp,"</PCellData>\n");
 
   for(int i = 0; i < num_processes; i++) {
-    fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\" Source=\"%s-%05ld-%02d%s\"/>\n", num_processes, num_processes + partialWidth, 0, h, prefix, timestep, i, ".vti");
+    fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\" Source=\"%s-%05ld-%02d%s\"/>\n", i * partialWidth, (i + 1) * partialWidth, 0, h, prefix, timestep, i, ".vti");
   }
 
   fprintf(fp,"</PImageData>\n");
