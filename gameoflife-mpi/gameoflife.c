@@ -14,24 +14,23 @@
 
 long TimeSteps = 2;
 
-void writeVTK2Piece(long timestep, double *data, char prefix[1024],int xStart, int xEnd, int yStart, int yEnd, long w, long h, int process_rank) {
+void writeVTK2Piece(long timestep, double *data, char prefix[1024], int w, int h, int overallWidth, int processRank) {
   char filename[2048];  
   int x,y; 
   
-  long offsetX=0;
-  long offsetY=0;
+  long offsetX = w * processRank;
+  long offsetY = 0;
   float deltax=1.0;
   float deltay=1.0;
   long  nxy = w * h * sizeof(float);  
 
-  snprintf(filename, sizeof(filename), "%s-%05ld-%02d%s", prefix, timestep, process_rank, ".vti");
+  snprintf(filename, sizeof(filename), "%s-%05ld-%02d%s", prefix, timestep, processRank, ".vti");
   FILE* fp = fopen(filename, "w");
 
   fprintf(fp, "<?xml version=\"1.0\"?>\n");
   fprintf(fp, "<VTKFile type=\"ImageData\" version=\"0.1\" byte_order=\"LittleEndian\" header_type=\"UInt64\">\n");
-  fprintf(fp, "<ImageData WholeExtent=\"%d %d %d %d 0 0\" Origin=\"0 0 0\" Spacing=\"1 1 0\">\n",
-    offsetX, offsetX + w, offsetY, offsetY + h);
-  fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\">\n", xStart, xEnd + 1, yStart, yEnd + 1);
+  fprintf(fp, "<ImageData WholeExtent=\"%d %d %d %d 0 0\" Origin=\"0 0 0\" Spacing=\"1 1 0\">\n", 0, overallWidth, 0, h);
+  fprintf(fp, "<Piece Extent=\"%d %d %d %d 0 0\">\n", offsetX, offsetX + w, 0, h);
   fprintf(fp, "<CellData Scalars=\"%s\">\n", prefix);
   fprintf(fp, "<DataArray type=\"Float32\" Name=\"%s\" format=\"appended\" offset=\"0\"/>\n", prefix);
   fprintf(fp, "</CellData>\n");
@@ -41,8 +40,8 @@ void writeVTK2Piece(long timestep, double *data, char prefix[1024],int xStart, i
   fprintf(fp, "_");
   fwrite((unsigned char*)&nxy, sizeof(long), 1, fp);
 
-  for (y = yStart; y <= yEnd; y++) {
-    for (x = xStart; x <= xEnd; x++) {
+  for (y = 0; y < h; y++) {
+    for (x = 0; x < w; x++) {
       float value = data[calcIndex(w,x,y)];
       fwrite((unsigned char*)&value, sizeof(float), 1, fp);
     }
@@ -214,7 +213,7 @@ void game(int overallWidth, int overallHeight, double initialfield[], MPI_Comm c
   // printf("Rank = %d, width x height = %d x %d\n", rank, w, h);
   // printToFile(currentfield, "field", w, h, rank);
 
-  for (int i = 0; i < TimeSteps; i++) {
+  for (int t = 0; t < TimeSteps; t++) {
     for (int i = 0; i < h; i++) {
       int index = calcIndex(w, 0, i);
       ghostLeft[i] = currentfield[index];
@@ -226,7 +225,7 @@ void game(int overallWidth, int overallHeight, double initialfield[], MPI_Comm c
 
     shareGhostlayers(ghostLeft, ghostRight, h, rank, num_processes, communicator);
     evolve(currentfield, newfield, ghostLeft, ghostRight, w, h);
-    //writeVTK2Piece()
+    writeVTK2Piece(t, currentfield, "gol", w, h, overallWidth, rank);
 
     // printToFile(ghostLeft, "sharedLeft", 1,h, rank);
     // printToFile(ghostRight, "sharedRight", 1,h,rank);
