@@ -12,7 +12,7 @@
 
 #define calcIndex(width, x,y)  ((y)*(width) + (x))
 
-long TimeSteps = 40;
+long TimeSteps = 2;
 
 void writeVTK2Piece(long timestep, double *data, char prefix[1024],int xStart, int xEnd, int yStart, int yEnd, long w, long h, int process_rank) {
   char filename[2048];  
@@ -107,14 +107,14 @@ void show(double* currentfield, int w, int h) {
   }
   fflush(stdout);
 }
- 
- 
-void evolve(double* currentfield, double* newfield, int startX, int endX, int startY, int endY, int w, int h) {
+
+
+void evolve(double* currentfield, double* newfield, double* ghostLeft, double* ghostRight, int w, int h) {
   int x,y;
-  for (y = startY; y <= endY; y++) {
-    for (x = startX; x <= endX; x++) {
+  for (y = 0; y < h; y++) {
+    for (x = 0; x < w; x++) {
       
-      int n = countNeighbours(currentfield, x, y, w, h);
+      int n = countNeighbours(currentfield, ghostLeft, ghostRight, x, y, w, h);
       int index = calcIndex(w, x, y);
 
       // dead or alive and 3 neighbours => come alive or stay alive
@@ -133,18 +133,26 @@ void evolve(double* currentfield, double* newfield, int startX, int endX, int st
   }
 }
 
-int countNeighbours(double* currentfield, int x, int y, int width, int height) {
+int countNeighbours(double* currentfield, double* ghostLeft, double* ghostRight, int x, int y, int w, int h) {
   int n = 0;
 
   for (int stencilX = (x-1); stencilX <= (x+1); stencilX++) {
     for (int stencilY = (y-1); stencilY <= (y+1); stencilY++) {
-      // the modulo operations makes the field be tested in a periodic way
-      n += currentfield[calcIndex(width, (stencilX + width) % width, (stencilY + height) % height)];
+      if (stencilX == -1) {
+          n += ghostLeft[calcIndex(1, 0, stencilY % h)];
+      }
+      else if (stencilX == w) {
+          n += ghostRight[calcIndex(1, 0, stencilY % h)];
+      }
+      else {
+        // the modulo operations makes the field be tested in a periodic way
+        n += currentfield[calcIndex(w, (stencilX + w) % w, (stencilY + h) % h)];
+      }
     }
   }
 
   // the center of the stencil should not be taken into account
-  n -= currentfield[calcIndex(width, x, y)];
+  n -= currentfield[calcIndex(w, x, y)];
 
   return n;
 }
@@ -195,32 +203,41 @@ double* readFromASCIIFile(char filename[256], int* w, int* h) {
 *   - mehr Aufwand*
 *
 */
-void game(int overallWidth, int overallHeight, double initialField[], MPI_Comm communicator, int rank, int num_processes) {
+void game(int overallWidth, int overallHeight, double initialfield[], MPI_Comm communicator, int rank, int num_processes) {
   int w = (overallWidth / num_processes);
   int h = overallHeight;
-  double* currentField = initialField;
-  double* newField = (double*)calloc(w * h, sizeof(double));
+  double* currentfield = initialfield;
+  double* newfield = (double*)calloc(w * h, sizeof(double));
   double* ghostLeft = (double*)calloc(h, sizeof(double));
   double* ghostRight = (double*)calloc(h, sizeof(double));
 
-  printf("Rank = %d, width x height = %d x %d\n", rank, w, h);
-  printToFile(currentField, "field", w, h, rank);
+  // printf("Rank = %d, width x height = %d x %d\n", rank, w, h);
+  // printToFile(currentfield, "field", w, h, rank);
 
-  for (int i = 0; i < h; i++) {
-    int index = calcIndex(w, 0, i);
-    ghostLeft[i] = currentField[index];
-    index = calcIndex(w, (w - 1), i);
-    ghostRight[i] = currentField[index];
+  for (int i = 0; i < TimeSteps; i++) {
+    for (int i = 0; i < h; i++) {
+      int index = calcIndex(w, 0, i);
+      ghostLeft[i] = currentfield[index];
+      index = calcIndex(w, (w - 1), i);
+      ghostRight[i] = currentfield[index];
+    }
+    // printToFile(ghostLeft, "ghostLeft", 1,h, rank);
+    // printToFile(ghostRight, "ghostRight", 1,h,rank);
+
+    shareGhostlayers(ghostLeft, ghostRight, h, rank, num_processes, communicator);
+    evolve(currentfield, newfield, ghostLeft, ghostRight, w, h);
+    //writeVTK2Piece()
+
+    // printToFile(ghostLeft, "sharedLeft", 1,h, rank);
+    // printToFile(ghostRight, "sharedRight", 1,h,rank);
+    
+    //SWAP
+    double *temp = currentfield;
+    currentfield = newfield;
+    newfield = temp;
   }
-  printToFile(ghostLeft, "ghostLeft", 1,h, rank);
-  printToFile(ghostRight, "ghostRight", 1,h,rank);
 
-  shareGhostlayers(ghostLeft, ghostRight, h, rank, num_processes, communicator);
-
-  printToFile(ghostLeft, "sharedLeft", 1,h, rank);
-  printToFile(ghostRight, "sharedRight", 1,h,rank);
-
-  free(newField);
+  free(newfield);
   free(ghostLeft);
   free(ghostRight);
 }
