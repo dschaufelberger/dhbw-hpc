@@ -12,7 +12,7 @@
 
 #define calcIndex(width, x,y)  ((y)*(width) + (x))
 
-long TimeSteps = 40;
+long TimeSteps = 100;
 
 void writeVTK2Piece(long timestep, double *data, char prefix[1024], int w, int h, int overallWidth, int processRank) {
   char filename[2048];  
@@ -97,8 +97,10 @@ void show(double* currentfield, int w, int h) {
 }
 
 
-void evolve(double* currentfield, double* newfield, double* ghostLeft, double* ghostRight, int w, int h) {
+int evolve(double* currentfield, double* newfield, double* ghostLeft, double* ghostRight, int w, int h) {
   int x,y;
+  int itLives = 0;
+
   for (y = 0; y < h; y++) {
     for (x = 0; x < w; x++) {
       
@@ -117,8 +119,12 @@ void evolve(double* currentfield, double* newfield, double* ghostLeft, double* g
       else {
         newfield[index] = 0;
       }
+      
+      itLives += (currentfield[index] != newfield[index]);
     }
   }
+
+  return itLives;
 }
 
 int countNeighbours(double* currentfield, double* ghostLeft, double* ghostRight, int x, int y, int w, int h) {
@@ -194,15 +200,19 @@ double* readFromASCIIFile(char filename[256], int* w, int* h) {
 void game(int overallWidth, int overallHeight, double initialfield[], MPI_Comm communicator, int rank, int num_processes) {
   int w = (overallWidth / num_processes);
   int h = overallHeight;
-  double* currentfield = initialfield;
+  double* currentfield = (double*)calloc(w * h, sizeof(double));
+  memcpy(currentfield, initialfield, w * h * sizeof(double));
   double* newfield = (double*)calloc(w * h, sizeof(double));
   double* ghostLeft = (double*)calloc(h, sizeof(double));
   double* ghostRight = (double*)calloc(h, sizeof(double));
+  int *aliveBuffer = (int*)calloc(1, sizeof(int));;
+  int itLives = 1;
 
   // printf("Rank = %d, width x height = %d x %d\n", rank, w, h);
   // printToFile(currentfield, "field", w, h, rank);
 
-  for (int t = 0; t < TimeSteps; t++) {
+  for (int t = 0; t < TimeSteps && itLives; t++) {
+    if (rank == 0) printf("Timestep %d\n", t);
     for (int i = 0; i < h; i++) {
       int index = calcIndex(w, 0, i);
       ghostLeft[i] = currentfield[index];
@@ -213,7 +223,7 @@ void game(int overallWidth, int overallHeight, double initialfield[], MPI_Comm c
     // printToFile(ghostRight, "ghostRight", 1,h,rank);
 
     shareGhostlayers(ghostLeft, ghostRight, h, rank, num_processes, communicator);
-    evolve(currentfield, newfield, ghostLeft, ghostRight, w, h);
+    itLives = evolve(currentfield, newfield, ghostLeft, ghostRight, w, h);
     writeVTK2Piece(t, currentfield, "gol", w, h, overallWidth, rank);
 
     if (rank == 0) {
@@ -227,11 +237,17 @@ void game(int overallWidth, int overallHeight, double initialfield[], MPI_Comm c
     double *temp = currentfield;
     currentfield = newfield;
     newfield = temp;
+
+    *aliveBuffer = itLives;
+    MPI_Allreduce(MPI_IN_PLACE, aliveBuffer, 1, MPI_INT, MPI_SUM, communicator);
+    itLives = *aliveBuffer;
   }
 
+  free(currentfield);
   free(newfield);
   free(ghostLeft);
   free(ghostRight);
+  free(aliveBuffer);
 }
 
 void shareGhostlayers(double* ghostLeft, double* ghostRight, int sendCount, int rank, int num_processes, MPI_Comm communicator) {
